@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/root/miniforge3/include",
+                "/root/miniforge3/lib/python3.10/site-packages/torch/include",
+                "/root/miniforge3/lib/python3.10/site-packages/torch/include/torch/csrc/api/include",
+                "/root/miniforge3/include/python3.10",
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/local/cuda-11.7/bin/nvcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
