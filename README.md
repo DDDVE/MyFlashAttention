@@ -25,3 +25,4 @@ implement flash attention 1 and 2, and compare them with function scaled_dot_pro
 
 # 如何进一步提升性能
 1. 扩大共享内存, 减少矩阵的分块数量, 从而减少核函数内的循环次数
+2. 将B和H分割, 放入不同的流中并行, 进一步提升并发度
