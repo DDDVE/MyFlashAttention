@@ -4,15 +4,9 @@ implement flash attention 1 and 2, and compare them with function scaled_dot_pro
 # 运行环境
 1.如果报错matplotlib缺少libstdc++29的库, 安装后需要export LD_LIBRARY_PATH, 例如/root/miniforge3/lib
 
-# 如何使用
-运行test_and_draw.py会在当前目录下生成文件夹, 并写入三种算法的运行时间对比图
-
-例子:
-![](test_result_20241218_193618/performance_B1_H1_d32.png)
-
 # 实验报告
 ## 1. Introduction
-Tri Dao等人提出了flash attention-1和flash attention-2, 本实验首先使用cuda初步复现了这两个算法, 验证了结果的正确性后尝试在初步复现的基础上进一步优化, 并和pytorch的标准attention计算过程比较运行时间. 本报告章节划分如下: 第二章, 介绍flash attention-1和flash attention-2的复现过程; 第三章, 对比自身实现中优化前后的运行时间; 第四章, 与pytorch的标准attention比较运行时间; 第五章, 实验结果总结.
+Tri Dao等人提出了flash attention-1和flash attention-2, 本实验首先使用cuda初步复现了这两个算法, 验证了结果的正确性后尝试在初步复现的基础上进一步优化, 并和pytorch的标准attention计算过程比较运行时间. 本报告章节划分如下: 第二章, 介绍flash attention-1和flash attention-2的复现过程; 第三章, 对比自身实现中优化前后的运行时间; 第四章, 与pytorch的标准attention比较运行时间; 第五章, 实验结果总结. 本实验结果均基于GPU Tesla 4.
 
 ## 2. Implement
 ### 2.1 flash attention-1
@@ -33,26 +27,27 @@ flash attention-1的算法如下:
 4. 计算行和与行最大值的时候使用warp归约运算. 注意这要求Bc不超过32.
 
 ### 2.2 flash attention-2
+实现代码在flash_attention2/flash_attention2.cu中.
+
 flash attention-2的算法如下
 ![image](https://github.com/user-attachments/assets/b140b522-20ed-4336-b2a8-bd8e5926670a)
 对于规模为B\*H\*N\*d的输入, 将线程网格大小设置为B\*H\*Tr, 线程块大小同上, 采用的优化方法也相同, 区别在于flash attention-2的核函数内部只有一层循环, 即使用j遍历Tc. 而对Tr的遍历分配到了不同的线程块, 每个线程块只处理一个i(0 <= i < Tr).
 
 ## 3. Self Compare
-本章
+本章对比了flash attention-1的初步实现和优化后的实现在运行时间上的差异, 并以pytorch的标准attention作为基线, 即以(F.softmax(Q @ K.transpose(-2,-1), dim=3)) @ V这一运算过程消耗的时间作为基线. 可以运行flash_attn1_self_compare.py得到对比结果, 该脚本会在当前目录下创建flash_attn1_self_compare_时间戳这一子目录, 并写入不同数据规模下的比较结果, 例如:
+![performance_B8_H4_d4](https://github.com/user-attachments/assets/bb136b8e-b56b-40ed-b6b9-d4f6d13ee99a)
+
+## 4. Compare flash attention-1 and flash attention-2 
+本章对比了flash attention-12的优化后的实现在运行时间上的差异, 并以pytorch的标准attention作为基线, 即以(F.softmax(Q @ K.transpose(-2,-1), dim=3)) @ V这一运算过程消耗的时间作为基线. 可以运行compare_with_pytorch.py得到对比结果, 该脚本会在当前目录下创建flash_attn_1_2_compare_时间戳这一子目录, 并写入不同数据规模下的对比结果, 例如:
+![performance_B8_H8_d8](https://github.com/user-attachments/assets/c0ab8050-06cb-4eb1-b8cf-abb1ffb77759)
+
+## 5. Results
+在flash attention-1的优化方面, 随着d的增大, 章节2.1.2中使用的优化措施带来的运行时间的减少越明显, 最大可以减少到约1/3.
+
+在flash attention-1和flash attention-2的对比方面, 2由于将核函数中的循环从两层减少到一层, 运行时间大大减少. 具体地, 当BHd很小时, 2的运行时间比1可以减少近百倍. 但是随着BHd的增大, 2和1的运行时间差距在减小.
+与pytorch的标准attention做对比, 当d小于16的时候, flash attention-2的运行时间可以低于pytorch; 当d大于等于16的时候, 2的运行时间会反超pytorch且差距随着d的增大而增大
 
 
-
-1. 三种方法的运行时间都随数据规模的增大而增加. 其中flash attn1的运行时间增加得最多, scaled_dot_product_attention的运行时间增加得最少
-2. 在大多数BHd的取值中, 当N<=1024时, flash attn2的运行时间可以低于scaled_dot_product_attention. 随着N的增大, flash attn2的运行时间会逐渐超过scaled_dot_product_attention, 且差距逐渐增大
-4. 除了N以外, d的取值对flash attn的运行时间影响也很大, 当d较小(如等于4时), 即使N=5k, scaled_dot_product_attention的运行时间也能达到flash attn2的60%; 但当d较大(如等于32)时, scaled_dot_product_attention在N=5k时的运行时间只有flash attn2的10%
-5. scaled_dot_product_attention的运行时间对N和d的变化相对不敏感
-6. B和H对三种方法的影响都较大. 对于scaled_dot_product_attention而言, 当N越大时, B和H对其的影响也会增大. 例如当N=5k, 且B或H翻倍时, scaled_dot_product_attention的运行时间也接近翻倍
-
-# 我在实现中采用了哪些方法提升性能
-1. 将数据分块从全局内存加载到共享内存, 减少访存开销
-2. 使用warp归约求和以及最大值, 减少线程间同步开销
-3. 在cuda编译指令中限制线程寄存器数量, 提升SM的并发度
-4. 指令向量化, 使用float4实现连续访存, IO次数减少75%, 且更好地利用了内存带宽
 
 # 如何进一步提升性能
 1. 扩大共享内存, 减少矩阵的分块数量, 从而减少核函数内的循环次数
