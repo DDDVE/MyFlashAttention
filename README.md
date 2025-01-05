@@ -1,5 +1,5 @@
 # MyFlashAttention
-implement flash attention 1 and 2, and compare them with function scaled_dot_product_attention
+implement flash attention 1 and 2, and compare them with function pytorch standard attention
 
 # 运行环境
 1.如果报错matplotlib缺少libstdc++29的库, 安装后需要export LD_LIBRARY_PATH, 例如/root/miniforge3/lib
