@@ -7,9 +7,12 @@
                 "/root/miniforge3/lib/python3.10/site-packages/torch/include",
                 "/root/miniforge3/lib/python3.10/site-packages/torch/include/torch/csrc/api/include",
                 "/root/miniforge3/include/python3.10",
+                "/usr/local/cuda-11.7/include",
+                "/usr/local/cuda-11.7/targets/x86_64-linux/include",
                 "${workspaceFolder}/**"
             ],
-            "defines": [],
+            "defines": [
+            ],
             "compilerPath": "/usr/local/cuda-11.7/bin/nvcc",
             "cStandard": "c17",
             "cppStandard": "gnu++17",
